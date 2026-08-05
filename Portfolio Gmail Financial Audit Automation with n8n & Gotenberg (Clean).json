@@ -1,0 +1,351 @@
+{
+  "name": "Portfolio Gmail Financial Audit Automation with n8n & Gotenberg",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================\n// AI Financial Auditor - Audit Engine V2\n// =============================\n\n// Hitung jumlah kemunculan setiap invoice\nconst invoiceCount = {};\n\nfor (const item of items) {\n  const inv = (item.json.Invoice_No || \"\").trim();\n  invoiceCount[inv] = (invoiceCount[inv] || 0) + 1;\n}\n\n// Audit setiap transaksi\nfor (const item of items) {\n\n  let score = 0;\n  const findings = [];\n\n  const row = item.json;\n\n  // Duplicate Invoice\n  if (invoiceCount[row.Invoice_No] > 1) {\n    score += 40;\n    findings.push(\"Duplicate Invoice\");\n  }\n\n  // Large Amount\n  if (Number(row.Amount) > 50000000) {\n    score += 25;\n    findings.push(\"Large Transaction\");\n  }\n\n  // Missing Approval\n  if (!row.Approved_By || row.Approved_By.trim() === \"\") {\n    score += 20;\n    findings.push(\"Missing Approval\");\n  }\n\n  // Missing Attachment\n  if ((row.Attachment || \"\").toLowerCase() === \"no\") {\n    score += 15;\n    findings.push(\"Missing Attachment\");\n  }\n\n  // Duplicate Payment\n  if (row.Payment_Status === \"Paid Twice\") {\n    score += 35;\n    findings.push(\"Duplicate Payment\");\n  }\n\n  // Invalid Date\n  if (row.Date === \"2026-02-30\") {\n    score += 20;\n    findings.push(\"Invalid Transaction Date\");\n  }\n\n  // New Vendor\n  if ((row.Vendor || \"\").startsWith(\"Vendor Baru\")) {\n    score += 10;\n    findings.push(\"New Vendor\");\n  }\n\n  // Risk Level\n  let risk = \"LOW\";\n\n  if (score >= 70) {\n    risk = \"CRITICAL\";\n  } else if (score >= 50) {\n    risk = \"HIGH\";\n  } else if (score >= 20) {\n    risk = \"MEDIUM\";\n  }\n\n  row.Audit_Score = score;\n  row.Risk_Level = risk;\n  row.Findings = findings.join(\", \");\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "",
+      "name": "Audit Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = {\n  totalTransactions: items.length,\n\n  riskSummary: {\n    LOW: 0,\n    MEDIUM: 0,\n    HIGH: 0,\n    CRITICAL: 0\n  },\n\n  issueSummary: {},\n\n  topRiskTransactions: []\n};\n\nfor (const item of items) {\n\n  const row = item.json;\n\n  // Hitung Risk Level\n  if (summary.riskSummary[row.Risk_Level] !== undefined) {\n    summary.riskSummary[row.Risk_Level]++;\n  }\n\n  // Hitung jenis temuan\n  if (row.Findings) {\n    if (!summary.issueSummary[row.Findings]) {\n      summary.issueSummary[row.Findings] = 0;\n    }\n\n    summary.issueSummary[row.Findings]++;\n  }\n\n  // Simpan transaksi yang bermasalah\n  if ((row.Audit_Score || 0) > 0) {\n\n    summary.topRiskTransactions.push({\n\n      Transaction_ID: row.Transaction_ID,\n\n      Invoice_No: row.Invoice_No,\n\n      Vendor: row.Vendor,\n\n      Amount: row.Amount,\n\n      Audit_Score: row.Audit_Score,\n\n      Risk_Level: row.Risk_Level,\n\n      Findings: row.Findings\n\n    });\n\n  }\n\n}\n\n// Urutkan berdasarkan skor audit tertinggi\nsummary.topRiskTransactions.sort((a, b) => b.Audit_Score - a.Audit_Score);\n\n// Ambil 20 transaksi paling berisiko\nsummary.topRiskTransactions =\nsummary.topRiskTransactions.slice(0, 20);\n\nreturn [\n{\njson: summary\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "",
+      "name": "Generate Summary"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior Financial Auditor AI.\n\nYour task is NOT to calculate numbers.\n\nThe calculations have already been completed by the Audit Engine.\n\nUse ONLY the JSON provided.\n\nDo not invent numbers.\n\nDo not estimate.\n\nDo not perform calculations.\n\nCreate a professional financial audit report with the following sections.\n\n# Executive Summary\n\nSummarize the overall audit results.\n\n# Risk Assessment\n\nExplain the current financial risk based on the provided statistics.\n\n# Key Findings\n\nExplain each issue found.\n\nUse the issueSummary object.\n\n# Top Risk Transactions\n\nExplain why these transactions require management attention.\n\n# Recommendations\n\nProvide practical recommendations based only on the findings.\n\nUse a professional tone similar to Deloitte, EY, PwC, or KPMG.\n\nOutput only Markdown.\n\n{{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "llama-3.3-70b-versatile",
+          "mode": "list",
+          "cachedResultName": "llama-3.3-70b-versatile"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        912,
+        208
+      ],
+      "id": "",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mengambil data langsung secara spesifik dari node AI Agent dan Generate Summary\nconst report = $('AI Agent').first().json.output || \"Laporan tidak tersedia.\";\nconst summary = $('Generate Summary').first().json;\n\nconst risk = summary.riskSummary;\nconst issue = summary.issueSummary;\n\nconst issueRows = Object.entries(issue)\n.map(([name, total]) => `\n<tr>\n<td>${name}</td>\n<td style=\"text-align:right\">${total}</td>\n</tr>\n`).join(\"\");\n\nconst topRows = summary.topRiskTransactions\n.map(t => `\n<tr>\n<td>${t.Transaction_ID}</td>\n<td>${t.Invoice_No}</td>\n<td>${t.Vendor}</td>\n<td style=\"text-align:right\">\nRp ${Number(t.Amount).toLocaleString(\"id-ID\")}\n</td>\n<td>${t.Risk_Level}</td>\n<td>${t.Findings}</td>\n</tr>\n`)\n.join(\"\");\n\nconst html = `\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>Automatic Financial Audit Report</title>\n<style>\nbody{font-family:Arial,sans-serif;background:#f4f7fb;margin:40px;}\n.container{background:white;padding:40px;border-radius:8px;box-shadow:0 0 8px rgba(0,0,0,.15);}\n.cards{display:flex;gap:15px;margin-bottom:30px;flex-wrap:wrap;}\n.card{flex:1;min-width:120px;padding:20px;border-radius:8px;color:white;text-align:center;}\n.blue{background:#0d6efd;}\n.green{background:#28a745;}\n.yellow{background:#ffc107;color:black;}\n.red{background:#dc3545;}\n.purple{background:#6f42c1;}\ntable{width:100%;border-collapse:collapse;margin-top:20px;margin-bottom:30px;}\nth,td{border:1px solid #ddd;padding:10px;}\nth{background:#1f4e79;color:white;}\n.report-content{line-height:1.6;color:#333;font-size:14px;white-space:pre-wrap;}\n.footer{margin-top:40px;text-align:center;font-size:12px;color:#777;}\n</style>\n</head>\n<body>\n<div class=\"container\">\n<h1>Automatic Financial Audit Report</h1>\n<p><b>Generated:</b> ${new Date().toLocaleString()}</p>\n\n<div class=\"cards\">\n<div class=\"card blue\"><h3>Total</h3><h1>${summary.totalTransactions}</h1></div>\n<div class=\"card green\"><h3>Low</h3><h1>${risk.LOW}</h1></div>\n<div class=\"card yellow\"><h3>Medium</h3><h1>${risk.MEDIUM}</h1></div>\n<div class=\"card red\"><h3>High</h3><h1>${risk.HIGH}</h1></div>\n<div class=\"card purple\"><h3>Critical</h3><h1>${risk.CRITICAL}</h1></div>\n</div>\n\n<h2>Issue Summary</h2>\n<table>\n<tr><th>Finding</th><th>Total</th></tr>\n${issueRows}\n</table>\n\n<h2>Executive Report</h2>\n<div class=\"report-content\">${report}</div>\n\n<h2>Top Risk Transactions</h2>\n<table>\n<tr>\n<th>ID</th><th>Invoice</th><th>Vendor</th><th>Amount</th><th>Risk</th><th>Findings</th>\n</tr>\n${topRows}\n</table>\n\n<div class=\"footer\">\nGenerated automatically by n8n Financial Auditor\n</div>\n</div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    html: html\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "",
+      "name": "Create HTML Report"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/forms/chromium/convert/html",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "files"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1856,
+        0
+      ],
+      "id": "",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.html;\n\nconst binaryData = await this.helpers.prepareBinaryData(\n    Buffer.from(html, 'utf8'),\n    'index.html',\n    'text/html'\n);\n\nreturn [\n  {\n    json: {},\n    binary: {\n      files: binaryData\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "",
+      "name": "Create HTML Binary"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get a message').item.json.from.value[0].address }}",
+        "subject": "=Automatic Financial Audit Report - {{ new Date().toLocaleDateString() }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<title>Financial Audit Report</title>\n<style>\nbody{\n    margin:0;\n    padding:0;\n    background:#f4f7f9;\n    font-family:Arial, Helvetica, sans-serif;\n}\n\n.container{\n    max-width:650px;\n    margin:40px auto;\n    background:#ffffff;\n    border-radius:8px;\n    box-shadow:0 2px 10px rgba(0,0,0,.1);\n    overflow:hidden;\n}\n\n.header{\n    background:#1f4e79;\n    color:white;\n    text-align:center;\n    padding:30px;\n}\n\n.header h1{\n    margin:0;\n    font-size:28px;\n}\n\n.content{\n    padding:35px;\n    color:#333;\n    line-height:1.8;\n}\n\n.content p{\n    margin-bottom:18px;\n}\n\ntable{\n    width:100%;\n    border-collapse:collapse;\n    margin:25px 0;\n}\n\nth{\n    background:#1f4e79;\n    color:white;\n    padding:12px;\n    text-align:left;\n}\n\ntd{\n    padding:12px;\n    border:1px solid #ddd;\n}\n\n.footer{\n    background:#f7f7f7;\n    padding:25px;\n    text-align:center;\n    font-size:13px;\n    color:#666;\n    border-top:1px solid #ddd;\n}\n\n.signature{\n    margin-top:30px;\n}\n</style>\n</head>\n\n<body>\n\n<div class=\"container\">\n\n<div class=\"header\">\n<h1>Financial Audit Report</h1>\n<p>PT. N8N NMB Balikpapan</p>\n</div>\n\n<div class=\"content\">\n\n<p>Dear User,</p>\n\n<p>\nYour financial transaction file has been successfully processed.\n</p>\n\n<p>\nPlease find the attached <strong>Financial Audit Report</strong> for your review.\nThe report provides a comprehensive analysis of the submitted financial transactions, including identified findings, risk assessment, and recommendations.\n</p>\n\n<table>\n\n<tr>\n<th>Report Contents</th>\n</tr>\n\n<tr><td>Executive Summary</td></tr>\n<tr><td>Risk Assessment</td></tr>\n<tr><td>Issue Summary</td></tr>\n<tr><td>Top Risk Transactions</td></tr>\n<tr><td>Recommendations</td></tr>\n\n</table>\n\n<p>\nIf you have any questions regarding the report, please do not hesitate to contact us.\n</p>\n\n<p>\nThank you for choosing our services.\n</p>\n\n<div class=\"signature\">\n\nKind regards,<br><br>\n\n<strong>PT. N8N NMB Balikpapan</strong><br>\nFinancial Audit Services\n\n</div>\n\n</div>\n\n<div class=\"footer\">\n\nThis email and its attachment are intended solely for the recipient.\nIf you received this email in error, please notify the sender and delete it immediately.\n\n</div>\n\n</div>\n\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        0
+      ],
+      "id": "",
+      "name": "Send a message",
+      "webhookId": "",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": ""
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{$json.id}}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "",
+      "name": "Get a message",
+      "webhookId": "",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Audit Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Engine": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HTML Report": {
+      "main": [
+        [
+          {
+            "node": "Create HTML Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HTML Binary": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "",
+  "tags": []
+}
