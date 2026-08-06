@@ -1,4 +1,4 @@
-<h1 align="center">📊 Financial Audit Automation using n8n</h1>
+<h1 align="center">📊 Portfolio Financial Audit Automation using n8n</h1>
 
 <p align="center">
 An end-to-end financial auditing workflow built with <b>n8n</b> that automatically processes Excel transaction files received via Gmail, analyzes financial risks, generates professional audit reports, converts them into PDF format, and emails the results back to the sender.
@@ -85,30 +85,7 @@ The workflow accepts an Excel spreadsheet sent via Gmail, extracts transaction d
 
 <h2>🎯 Workflow</h2>
 
-<pre>
-Gmail Trigger
-      │
-      ▼
-Download Attachment
-      │
-      ▼
-Extract Excel Data
-      │
-      ▼
-Financial Audit Engine
-      │
-      ▼
-Generate Executive Summary
-      │
-      ▼
-Generate HTML Report
-      │
-      ▼
-Convert HTML → PDF (Gotenberg)
-      │
-      ▼
-Send Audit Report via Gmail
-</pre>
+<img width="1067" height="414" alt="Screenshot 2026-08-06 065020" src="https://github.com/user-attachments/assets/0c910e1c-7ccc-4b61-b53f-2ba2f4119e26" />
 
 ---
 
@@ -131,3 +108,18 @@ Send Audit Report via Gmail
 <b>Nurma Maha Bayu</b><br>
 Automation Developer | Workflow Automation | n8n | AI Integration | Financial Process Automation
 </p>
+
+<p>
+<b> Example Email Images</b>
+<img width="973" height="665" alt="Screenshot 2026-08-06 063834" src="https://github.com/user-attachments/assets/d5c63070-3c34-45b1-af3a-c36f3490bacb" />
+
+<img width="1010" height="641" alt="Screenshot 2026-08-06 064720" src="https://github.com/user-attachments/assets/8e05fb32-03e6-4ce2-82da-3e6c68b15bd6" />
+
+<img width="1267" height="586" alt="Screenshot 2026-08-06 064854" src="https://github.com/user-attachments/assets/f65429d8-ed90-4c28-a9cf-0795507a61ef" />
+
+<img width="1269" height="582" alt="Screenshot 2026-08-06 064915" src="https://github.com/user-attachments/assets/704742ec-e3ff-4e0b-a43d-c2f1930ae3c4" />
+
+<img width="1259" height="585" alt="Screenshot 2026-08-06 064938" src="https://github.com/user-attachments/assets/d25faaa3-494e-469a-90d8-09f0899745f8" />
+
+
+
